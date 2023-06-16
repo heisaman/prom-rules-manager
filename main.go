@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 	"time"
 
-	klog "github.com/go-kit/log"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/rules"
 )
@@ -16,13 +17,20 @@ var (
 	interval       = 10 * time.Second
 	externalLabels labels.Labels
 	externalURL    string
-	logger         klog.Logger
+	logger         log.Logger
 )
 
 func main() {
+	webHandler := NewHandler(log.With(logger, "component", "web"))
+	listener, err := webHandler.Listener()
+	if err != nil {
+		level.Error(logger).Log("msg", "Unable to start web listener", "err", err)
+		os.Exit(1)
+	}
+
 	rgs, errs := groupLoader.Load(filename)
 	if errs != nil {
-		log.Fatal(errs)
+		panic(errs)
 	}
 
 	// opts := &ManagerOptions{
@@ -48,7 +56,7 @@ func main() {
 		for _, r := range rg.Rules {
 			expr, err := groupLoader.Parse(r.Expr.Value)
 			if err != nil {
-				log.Fatal(fmt.Errorf("%s: %w", filename, err))
+				panic(fmt.Errorf("%s: %w", filename, err))
 			}
 
 			if r.Alert.Value != "" {

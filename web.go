@@ -2,8 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
+	stdlog "log"
 	"net"
+	"net/http"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -11,6 +15,8 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/mwitkow/go-conntrack"
 	"github.com/prometheus/common/route"
+	toolkit_web "github.com/prometheus/exporter-toolkit/web"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/net/netutil"
 )
 
@@ -18,6 +24,25 @@ const (
 	ListenAddress  = "0.0.0.0:9090"
 	MaxConnections = 512
 )
+
+// withStackTrace logs the stack trace in case the request panics. The function
+// will re-raise the error which will then be handled by the net/http package.
+// It is needed because the go-kit log package doesn't manage properly the
+// panics from net/http (see https://github.com/go-kit/kit/issues/233).
+func withStackTracer(h http.Handler, l log.Logger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				const size = 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
+				level.Error(l).Log("msg", "panic while serving request", "client", r.RemoteAddr, "url", r.URL, "err", err, "stack", buf)
+				panic(err)
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
+}
 
 // Handler serves various HTTP endpoints of the Prometheus server
 type Handler struct {
@@ -51,6 +76,15 @@ func NewHandler(logger log.Logger) *Handler {
 		cwd:    cwd,
 	}
 
+	router.Get("/api/rules/add", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Rules agent is Healthy.\n")
+	})
+	router.Get("/api/rules/delete", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Rules agent is Ready.\n")
+	})
+
 	return h
 }
 
@@ -70,4 +104,43 @@ func (h *Handler) Listener() (net.Listener, error) {
 		conntrack.TrackWithTracing())
 
 	return listener, nil
+}
+
+// Run serves the HTTP endpoints.
+func (h *Handler) Run(ctx context.Context, listener net.Listener, webConfig string) error {
+	if listener == nil {
+		var err error
+		listener, err = h.Listener()
+		if err != nil {
+			return err
+		}
+	}
+
+	mux := http.NewServeMux()
+	mux.Handle("/", h.router)
+
+	errlog := stdlog.New(log.NewStdlibAdapter(level.Error(h.logger)), "", 0)
+
+	spanNameFormatter := otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
+		return fmt.Sprintf("%s %s", r.Method, r.URL.Path)
+	})
+
+	httpSrv := &http.Server{
+		Handler:     withStackTracer(otelhttp.NewHandler(mux, "", spanNameFormatter), h.logger),
+		ErrorLog:    errlog,
+		ReadTimeout: time.Duration(0),
+	}
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- toolkit_web.Serve(listener, httpSrv, &toolkit_web.FlagConfig{WebConfigFile: &webConfig}, h.logger)
+	}()
+
+	select {
+	case e := <-errCh:
+		return e
+	case <-ctx.Done():
+		httpSrv.Shutdown(ctx)
+		return nil
+	}
 }

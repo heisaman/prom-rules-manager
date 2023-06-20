@@ -1,12 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -21,23 +18,23 @@ var (
 
 func init() {
 	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
-	}
-	// creates the clientset
-	clientset, err = kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
+	// config, err := rest.InClusterConfig()
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+	// // creates the clientset
+	// clientset, err = kubernetes.NewForConfig(config)
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
 
-	// specify namespace to get cm in particular namespace
-	rulesConfig, err := clientset.CoreV1().ConfigMaps("monitoring").Get(context.TODO(), rulefileConfigMap, metav1.GetOptions{})
+	// // specify namespace to get cm in particular namespace
+	// rulesConfig, err := clientset.CoreV1().ConfigMaps("monitoring").Get(context.TODO(), rulefileConfigMap, metav1.GetOptions{})
 
-	if err != nil {
-		panic(err.Error())
-	}
-	ruleGroupsStr = rulesConfig.Data[rulefileName]
+	// if err != nil {
+	// 	panic(err.Error())
+	// }
+	// ruleGroupsStr = rulesConfig.Data[rulefileName]
 }
 
 type RulesManager struct {
@@ -45,22 +42,77 @@ type RulesManager struct {
 }
 
 func NewRulesManager() *RulesManager {
-	ruleGroups, errors := ParseFile(ruleGroupsStr)
+	ruleGroups, errors := Parse([]byte(ruleGroupsStr))
 	if len(errors) > 0 {
 		fmt.Println(errors)
 	}
+
+	// opts := &rules.ManagerOptions{}
+
+	// groups := make(map[string]*rules.Group)
+	// for _, rg := range rgs.Groups {
+	// 	itv := interval
+	// 	if rg.Interval != 0 {
+	// 		itv = time.Duration(rg.Interval)
+	// 	}
+
+	// 	groupRules := make([]rules.Rule, 0, len(rg.Rules))
+	// 	for _, r := range rg.Rules {
+	// 		expr, err := groupLoader.Parse(r.Expr.Value)
+	// 		if err != nil {
+	// 			panic(fmt.Errorf("%s: %w", filename, err))
+	// 		}
+
+	// 		if r.Alert.Value != "" {
+	// 			groupRules = append(groupRules, rules.NewAlertingRule(
+	// 				r.Alert.Value,
+	// 				expr,
+	// 				time.Duration(r.For),
+	// 				time.Duration(r.KeepFiringFor),
+	// 				labels.FromMap(r.Labels),
+	// 				labels.FromMap(r.Annotations),
+	// 				externalLabels,
+	// 				externalURL,
+	// 				false,
+	// 				log.With(logger, "alert", r.Alert),
+	// 			))
+
+	// 			fmt.Println(fmt.Sprintf("%+v", groupRules[0]))
+	// 			continue
+	// 		}
+	// 		groupRules = append(groupRules, rules.NewRecordingRule(
+	// 			r.Record.Value,
+	// 			expr,
+	// 			labels.FromMap(r.Labels),
+	// 		))
+	// 	}
+
+	// 	groups[rules.GroupKey(filename, rg.Name)] = rules.NewGroup(rules.GroupOptions{
+	// 		Name:              rg.Name,
+	// 		File:              filename,
+	// 		Interval:          itv,
+	// 		Limit:             rg.Limit,
+	// 		Rules:             groupRules,
+	// 		ShouldRestore:     false,
+	// 		Opts:              opts,
+	// 		EvalIterationFunc: nil,
+	// 	})
+	// }
+
+	// fmt.Println(fmt.Sprintf("%+v", groups))
+
 	return &RulesManager{ruleGroups}
 }
 
-func (manager *RulesManager) AddRule(group string) error {
+func (manager *RulesManager) AddRule(group string, newRule Rule) error {
 	fmt.Println(manager.ruleGroups)
-	fmt.Println("AddRule...")
+	fmt.Println(fmt.Sprintf("AddRule...%+v", newRule))
 	return nil
 }
 
-func (manager *RulesManager) RemoveRule(group string) error {
+func (manager *RulesManager) RemoveRule(group string, oldRule Rule) error {
 	fmt.Println(manager.ruleGroups)
-	fmt.Println("AddRule...")
+	fmt.Println(fmt.Sprintf("RemoveRule...%+v", oldRule))
 	return nil
 }
 

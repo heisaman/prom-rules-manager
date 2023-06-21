@@ -76,11 +76,15 @@ func NewHandler(logger log.Logger) *Handler {
 		cwd:    cwd,
 	}
 
-	router.Get("/api/rules/add", func(w http.ResponseWriter, r *http.Request) {
+	router.Post("/api/rules/add", func(w http.ResponseWriter, r *http.Request) {
+		level.Info(h.logger).Log("msg", "Add rules...")
+		rulesManager := NewRulesManager()
+		rulesManager.AddRule("general.rules", Rule{})
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Rules agent is Healthy.\n")
 	})
-	router.Get("/api/rules/delete", func(w http.ResponseWriter, r *http.Request) {
+	router.Post("/api/rules/delete", func(w http.ResponseWriter, r *http.Request) {
+		level.Info(h.logger).Log("msg", "Start listening for connections", "address", ListenAddress)
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Rules agent is Ready.\n")
 	})
@@ -90,7 +94,7 @@ func NewHandler(logger log.Logger) *Handler {
 
 // Listener creates the TCP listener for web requests.
 func (h *Handler) Listener() (net.Listener, error) {
-	level.Info(h.logger).Log("msg", "Start listening for connections", "address", ListenAddress)
+	level.Info(h.logger).Log("msg", "Remove rules...")
 
 	listener, err := net.Listen("tcp", ListenAddress)
 	if err != nil {

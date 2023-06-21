@@ -141,6 +141,13 @@ type RuleGroup struct {
 	Rules    []RuleNode     `yaml:"rules" json:"rules"`
 }
 
+type NewRuleGroup struct {
+	Name     string         `yaml:"name" json:"name"`
+	Interval model.Duration `yaml:"interval,omitempty" json:"interval,omitempty"`
+	Limit    int            `yaml:"limit,omitempty" json:"limit,omitempty"`
+	Rules    []Rule         `yaml:"rules" json:"rules"`
+}
+
 // Rule describes an alerting or recording rule.
 type Rule struct {
 	Record        string            `yaml:"record,omitempty" json:"record,omitempty"`

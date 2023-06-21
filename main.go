@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/alecthomas/kingpin"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/oklog/run"
@@ -12,10 +13,15 @@ import (
 )
 
 var (
-// groupLoader    = rules.FileLoader{}
-// filename       = "rules.yaml"
-// interval       = 10 * time.Second
+	// groupLoader    = rules.FileLoader{}
+	// filename       = "rules.yaml"
+	// interval       = 10 * time.Second
+	standaloneMode = kingpin.Flag("standalone", "Enable standalone mode, used for out of a K8s cluster.").Default("false").Bool()
 )
+
+func init() {
+	kingpin.Parse()
+}
 
 func main() {
 	logger := promlog.New(&promlog.Config{})

@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
+	"github.com/alecthomas/kingpin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -23,6 +25,8 @@ var (
 )
 
 func init() {
+	kingpin.Parse()
+	fmt.Println("k8s.go standaloneMode: " + strconv.FormatBool(*standaloneMode))
 	// Get the clientset
 	var err error
 	if *standaloneMode {

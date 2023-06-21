@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/go-kit/log"
@@ -20,7 +21,7 @@ var (
 )
 
 func init() {
-	kingpin.Parse()
+	fmt.Println("main standaloneMode: " + strconv.FormatBool(*standaloneMode))
 }
 
 func main() {

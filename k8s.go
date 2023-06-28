@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/alecthomas/kingpin"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,7 +25,6 @@ var (
 
 func init() {
 	kingpin.Parse()
-	fmt.Println("k8s.go standaloneMode: " + strconv.FormatBool(*standaloneMode))
 	// Get the clientset
 	var err error
 	if *standaloneMode {
@@ -141,7 +139,27 @@ func (manager *RulesManager) RemoveRule(group string, oldRule Rule) error {
 }
 
 func (manager *RulesManager) updateConfigMap() error {
-	// clientset.CoreV1().ConfigMaps("monitoring").Patch()
+	// Prepare the patch data
+	patchBytes := []byte(patch)
+
+	// Create the PatchType object
+	pt := types.JSONPatchType
+
+	// Build the Patch object
+	patchObj := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+	}
+
+	// Apply the patch
+	_, err := clientset.CoreV1().ConfigMaps("monitoring").Patch(context.TODO(), rulefileConfigMap, pt, patchBytes, metav1.PatchOptions{
+		FieldManager: "client-go-patch",
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -174,30 +192,4 @@ func getOutOfClusterClient() (*kubernetes.Clientset, error) {
 	}
 
 	return clientset, nil
-}
-
-func patchConfigMap(clientset *kubernetes.Clientset, namespace, name, patch string) error {
-	// Prepare the patch data
-	patchBytes := []byte(patch)
-
-	// Create the PatchType object
-	pt := types.JSONPatchType
-
-	// Build the Patch object
-	// patchObj := &corev1.ConfigMap{
-	// 	ObjectMeta: metav1.ObjectMeta{
-	// 		Name:      name,
-	// 		Namespace: namespace,
-	// 	},
-	// }
-
-	// Apply the patch
-	_, err := clientset.CoreV1().ConfigMaps(namespace).Patch(context.TODO(), name, pt, patchBytes, metav1.PatchOptions{
-		FieldManager: "client-go-patch",
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

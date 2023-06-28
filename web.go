@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	stdlog "log"
 	"net"
@@ -78,15 +79,28 @@ func NewHandler(logger log.Logger) *Handler {
 
 	router.Post("/api/rules/add", func(w http.ResponseWriter, r *http.Request) {
 		level.Info(h.logger).Log("msg", "Add rules...")
+		decoder := json.NewDecoder(r.Body)
+		var ruleGroup SimpleRuleGroup
+		err := decoder.Decode(&ruleGroup)
+		if err != nil {
+			level.Error(h.logger).Log("msg", fmt.Sprintf("Error decoding request body: %s", err))
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Group rules cannot be decoded.\n")
+			return
+		}
+
 		rulesManager := NewRulesManager()
-		rulesManager.AddRule("general.rules", Rule{})
+		for _, rule := range ruleGroup.Rules {
+			rulesManager.AddRule(ruleGroup.Name, Rule{})
+		}
+
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Rules agent is Healthy.\n")
+		fmt.Fprintf(w, "Rules are added successfully.\n")
 	})
 	router.Post("/api/rules/delete", func(w http.ResponseWriter, r *http.Request) {
-		level.Info(h.logger).Log("msg", "Start listening for connections", "address", ListenAddress)
+		level.Info(h.logger).Log("msg", "Delete rules...")
 		w.WriteHeader(http.StatusOK)
-		fmt.Fprintf(w, "Rules agent is Ready.\n")
+		fmt.Fprintf(w, "Rules are deleted successfully.\n")
 	})
 
 	return h
@@ -94,7 +108,7 @@ func NewHandler(logger log.Logger) *Handler {
 
 // Listener creates the TCP listener for web requests.
 func (h *Handler) Listener() (net.Listener, error) {
-	level.Info(h.logger).Log("msg", "Remove rules...")
+	level.Info(h.logger).Log("msg", "Start listening for connections", "address", ListenAddress)
 
 	listener, err := net.Listen("tcp", ListenAddress)
 	if err != nil {

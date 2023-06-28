@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/alecthomas/kingpin"
 	"github.com/go-kit/log"
@@ -18,14 +17,14 @@ var (
 	// filename       = "rules.yaml"
 	// interval       = 10 * time.Second
 	standaloneMode = kingpin.Flag("standalone", "Enable standalone mode, used for out of a K8s cluster.").Default("false").Bool()
+	logger         = promlog.New(&promlog.Config{})
 )
 
 func init() {
-	fmt.Println("main standaloneMode: " + strconv.FormatBool(*standaloneMode))
 }
 
 func main() {
-	logger := promlog.New(&promlog.Config{})
+	level.Info(logger).Log("standaloneMode", *standaloneMode)
 	ctxWeb, cancelWeb := context.WithCancel(context.Background())
 
 	webHandler := NewHandler(log.With(logger, "component", "web"))

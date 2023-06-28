@@ -141,7 +141,7 @@ type RuleGroup struct {
 	Rules    []RuleNode     `yaml:"rules" json:"rules"`
 }
 
-type NewRuleGroup struct {
+type SimpleRuleGroup struct {
 	Name     string         `yaml:"name" json:"name"`
 	Interval model.Duration `yaml:"interval,omitempty" json:"interval,omitempty"`
 	Limit    int            `yaml:"limit,omitempty" json:"limit,omitempty"`

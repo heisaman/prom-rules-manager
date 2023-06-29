@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/alecthomas/kingpin"
+	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
@@ -14,6 +16,7 @@ import (
 )
 
 const (
+	namespace         = "monitoring"
 	rulefileConfigMap = "prometheus-rulefile-custom"
 	rulefileName      = "rules.yml"
 )
@@ -37,7 +40,7 @@ func init() {
 	}
 
 	// specify namespace to get cm in particular namespace
-	rulesConfig, err := clientset.CoreV1().ConfigMaps("monitoring").Get(context.TODO(), rulefileConfigMap, metav1.GetOptions{})
+	rulesConfig, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), rulefileConfigMap, metav1.GetOptions{})
 
 	if err != nil {
 		panic(err.Error())
@@ -112,23 +115,49 @@ func NewRulesManager() *RulesManager {
 	return &RulesManager{ruleGroups}
 }
 
-func (manager *RulesManager) AddRule(group string, newRule Rule) error {
+func (manager *RulesManager) AddRule(groupName string, newRule *Rule) error {
 	fmt.Println(manager.ruleGroups)
 	fmt.Println(fmt.Sprintf("AddRule...%+v", newRule))
 
-	// Define the ConfigMap details
-	// namespace := "your-namespace"
-	// name := "your-configmap-name"
-	// patch := `[{"op": "replace", "path": "/data/key", "value": "new-value"}]`
+	newNodeRule := RuleNode{
+		For:           newRule.For,
+		KeepFiringFor: newRule.KeepFiringFor,
+		Labels:        newRule.Labels,
+		Annotations:   newRule.Annotations,
+	}
+	var recordNode, alertNode, exprNode yaml.Node
+	exprNode.SetString(newRule.Expr)
+	newNodeRule.Expr = exprNode
+	if newRule.Alert != "" {
+		alertNode.SetString(newRule.Alert)
+		newNodeRule.Alert = alertNode
+	}
+	if newRule.Record != "" {
+		recordNode.SetString(newRule.Record)
+		newNodeRule.Record = recordNode
+	}
 
-	// // Patch the ConfigMap
-	// err := patchConfigMap(clientset, namespace, name, patch)
-	// if err != nil {
-	// 	fmt.Printf("Failed to patch ConfigMap: %v\n", err)
-	// 	return err
-	// }
+	for _, ruleGroup := range manager.ruleGroups.Groups {
+		if ruleGroup.Name == groupName {
+			ruleGroup.Rules = append(ruleGroup.Rules, newNodeRule)
+			break
+		}
+	}
 
-	fmt.Println("ConfigMap patched successfully.")
+	// Patch the ConfigMap
+	rulesData, err := yaml.Marshal(manager.ruleGroups)
+	if err != nil {
+		return err
+	}
+	err = manager.updateConfigMap(map[string]string{
+		rulefileName: string(rulesData),
+	})
+	if err != nil {
+		fmt.Printf("Failed to patch ConfigMap: %v\n", err)
+		return err
+	}
+
+	fmt.Println("Custom rules configmap patched successfully.")
 	return nil
 }
 
@@ -138,23 +167,17 @@ func (manager *RulesManager) RemoveRule(group string, oldRule Rule) error {
 	return nil
 }
 
-func (manager *RulesManager) updateConfigMap() error {
-	// Prepare the patch data
-	patchBytes := []byte(patch)
-
-	// Create the PatchType object
-	pt := types.JSONPatchType
-
-	// Build the Patch object
-	patchObj := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+func (manager *RulesManager) updateConfigMap(patchData map[string]string) error {
+	patchBytes, err := json.Marshal(patchData)
+	if err != nil {
+		return err
 	}
 
+	// Create the PatchType object
+	patchType := types.MergePatchType
+
 	// Apply the patch
-	_, err := clientset.CoreV1().ConfigMaps("monitoring").Patch(context.TODO(), rulefileConfigMap, pt, patchBytes, metav1.PatchOptions{
+	_, err = clientset.CoreV1().ConfigMaps(namespace).Patch(context.TODO(), rulefileConfigMap, patchType, patchBytes, metav1.PatchOptions{
 		FieldManager: "client-go-patch",
 	})
 	if err != nil {

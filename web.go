@@ -91,7 +91,7 @@ func NewHandler(logger log.Logger) *Handler {
 
 		rulesManager := NewRulesManager()
 		for _, rule := range ruleGroup.Rules {
-			rulesManager.AddRule(ruleGroup.Name, Rule{})
+			rulesManager.AddRule(ruleGroup.Name, &rule)
 		}
 
 		w.WriteHeader(http.StatusOK)

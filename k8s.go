@@ -22,8 +22,7 @@ const (
 )
 
 var (
-	ruleGroupsStr string
-	clientset     *kubernetes.Clientset
+	clientset *kubernetes.Clientset
 )
 
 func init() {
@@ -38,14 +37,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Sprintf("Failed to get clientset: %v\n", err))
 	}
-
-	// specify namespace to get cm in particular namespace
-	rulesConfig, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), rulefileConfigMap, metav1.GetOptions{})
-
-	if err != nil {
-		panic(err.Error())
-	}
-	ruleGroupsStr = rulesConfig.Data[rulefileName]
 }
 
 type RulesManager struct {
@@ -53,7 +44,13 @@ type RulesManager struct {
 }
 
 func NewRulesManager() *RulesManager {
-	ruleGroups, errors := Parse([]byte(ruleGroupsStr))
+	// specify namespace to get cm in particular namespace
+	rulesConfig, err := clientset.CoreV1().ConfigMaps(namespace).Get(context.TODO(), rulefileConfigMap, metav1.GetOptions{})
+
+	if err != nil {
+		panic(err.Error())
+	}
+	ruleGroups, errors := Parse([]byte(rulesConfig.Data[rulefileName]))
 	if len(errors) > 0 {
 		fmt.Println(errors)
 	}
@@ -116,8 +113,8 @@ func NewRulesManager() *RulesManager {
 }
 
 func (manager *RulesManager) AddRule(groupName string, newRule *Rule) error {
-	fmt.Println(manager.ruleGroups)
-	fmt.Println(fmt.Sprintf("AddRule...%+v", newRule))
+	// fmt.Println(fmt.Sprintf("RuleGroups: %+v", manager.ruleGroups))
+	fmt.Println(fmt.Sprintf("AddRule: %+v", newRule))
 
 	newNodeRule := RuleNode{
 		For:           newRule.For,
@@ -149,9 +146,12 @@ func (manager *RulesManager) AddRule(groupName string, newRule *Rule) error {
 	if err != nil {
 		return err
 	}
-	err = manager.updateConfigMap(map[string]string{
+
+	fmt.Println(fmt.Sprintf("RuleGroups: %+v", manager.ruleGroups))
+	dataValue := map[string]string{
 		rulefileName: string(rulesData),
-	})
+	}
+	err = manager.updateConfigMap(map[string]interface{}{"data": dataValue})
 	if err != nil {
 		fmt.Printf("Failed to patch ConfigMap: %v\n", err)
 		return err
@@ -167,7 +167,7 @@ func (manager *RulesManager) RemoveRule(group string, oldRule Rule) error {
 	return nil
 }
 
-func (manager *RulesManager) updateConfigMap(patchData map[string]string) error {
+func (manager *RulesManager) updateConfigMap(patchData map[string]interface{}) error {
 	patchBytes, err := json.Marshal(patchData)
 	if err != nil {
 		return err

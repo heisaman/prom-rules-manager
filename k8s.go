@@ -114,7 +114,8 @@ func NewRulesManager() *RulesManager {
 
 func (manager *RulesManager) AddRule(groupName string, newRule *Rule) error {
 	// fmt.Println(fmt.Sprintf("RuleGroups: %+v", manager.ruleGroups))
-	fmt.Println(fmt.Sprintf("AddRule: %+v", newRule))
+	fmt.Println(groupName)
+	fmt.Println(fmt.Sprintf("AddRule: %+v\n", newRule))
 
 	newNodeRule := RuleNode{
 		For:           newRule.For,
@@ -134,9 +135,12 @@ func (manager *RulesManager) AddRule(groupName string, newRule *Rule) error {
 		newNodeRule.Record = recordNode
 	}
 
-	for _, ruleGroup := range manager.ruleGroups.Groups {
+	for i, ruleGroup := range manager.ruleGroups.Groups {
+		fmt.Println(fmt.Sprintf("In forrange, ruleGroup %s address: %p\n", ruleGroup.Name, &ruleGroup))
 		if ruleGroup.Name == groupName {
-			ruleGroup.Rules = append(ruleGroup.Rules, newNodeRule)
+			// ruleGroup.Rules = append(ruleGroup.Rules, newNodeRule)
+			manager.ruleGroups.Groups[i].Rules = append(manager.ruleGroups.Groups[i].Rules, newNodeRule)
+			fmt.Println(fmt.Sprintf("ruleGroup appended a newNodeRule: %+v\n", ruleGroup))
 			break
 		}
 	}
@@ -147,7 +151,7 @@ func (manager *RulesManager) AddRule(groupName string, newRule *Rule) error {
 		return err
 	}
 
-	fmt.Println(fmt.Sprintf("RuleGroups: %+v", manager.ruleGroups))
+	fmt.Println(fmt.Sprintf("manager.ruleGroups: %+v", manager.ruleGroups))
 	dataValue := map[string]string{
 		rulefileName: string(rulesData),
 	}

@@ -112,36 +112,35 @@ func NewRulesManager() *RulesManager {
 	return &RulesManager{ruleGroups}
 }
 
-func (manager *RulesManager) AddRule(groupName string, newRule *Rule) error {
-	// fmt.Println(fmt.Sprintf("RuleGroups: %+v", manager.ruleGroups))
-	fmt.Println(groupName)
-	fmt.Println(fmt.Sprintf("AddRule: %+v\n", newRule))
-
-	newNodeRule := RuleNode{
-		For:           newRule.For,
-		KeepFiringFor: newRule.KeepFiringFor,
-		Labels:        newRule.Labels,
-		Annotations:   newRule.Annotations,
-	}
-	var recordNode, alertNode, exprNode yaml.Node
-	exprNode.SetString(newRule.Expr)
-	newNodeRule.Expr = exprNode
-	if newRule.Alert != "" {
-		alertNode.SetString(newRule.Alert)
-		newNodeRule.Alert = alertNode
-	}
-	if newRule.Record != "" {
-		recordNode.SetString(newRule.Record)
-		newNodeRule.Record = recordNode
-	}
+func (manager *RulesManager) AddRules(newRuleGroup SimpleRuleGroup) error {
+	fmt.Println(fmt.Sprintf("AddRules: %+v\n", newRuleGroup))
 
 	for i, ruleGroup := range manager.ruleGroups.Groups {
 		fmt.Println(fmt.Sprintf("In forrange, ruleGroup %s address: %p\n", ruleGroup.Name, &ruleGroup))
-		if ruleGroup.Name == groupName {
-			// ruleGroup.Rules = append(ruleGroup.Rules, newNodeRule)
-			manager.ruleGroups.Groups[i].Rules = append(manager.ruleGroups.Groups[i].Rules, newNodeRule)
-			fmt.Println(fmt.Sprintf("ruleGroup appended a newNodeRule: %+v\n", ruleGroup))
-			break
+		if ruleGroup.Name == newRuleGroup.Name {
+			for _, newRule := range newRuleGroup.Rules {
+				newNodeRule := RuleNode{
+					For:           newRule.For,
+					KeepFiringFor: newRule.KeepFiringFor,
+					Labels:        newRule.Labels,
+					Annotations:   newRule.Annotations,
+				}
+				var recordNode, alertNode, exprNode yaml.Node
+				exprNode.SetString(newRule.Expr)
+				newNodeRule.Expr = exprNode
+				if newRule.Alert != "" {
+					alertNode.SetString(newRule.Alert)
+					newNodeRule.Alert = alertNode
+				}
+				if newRule.Record != "" {
+					recordNode.SetString(newRule.Record)
+					newNodeRule.Record = recordNode
+				}
+				// ruleGroup.Rules = append(ruleGroup.Rules, newNodeRule)
+				manager.ruleGroups.Groups[i].Rules = append(manager.ruleGroups.Groups[i].Rules, newNodeRule)
+				fmt.Println(fmt.Sprintf("ruleGroup appended a newNodeRule: %+v\n", ruleGroup))
+				break
+			}
 		}
 	}
 

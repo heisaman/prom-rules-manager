@@ -90,9 +90,7 @@ func NewHandler(logger log.Logger) *Handler {
 		}
 
 		rulesManager := NewRulesManager()
-		for _, rule := range ruleGroup.Rules {
-			rulesManager.AddRule(ruleGroup.Name, &rule)
-		}
+		rulesManager.AddRules(ruleGroup)
 
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Rules are added successfully.\n")

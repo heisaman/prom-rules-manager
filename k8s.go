@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/alecthomas/kingpin"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -118,7 +119,21 @@ func (manager *RulesManager) AddRules(newRuleGroup SimpleRuleGroup) error {
 	for i, ruleGroup := range manager.ruleGroups.Groups {
 		fmt.Println(fmt.Sprintf("In forrange, ruleGroup %s address: %p\n", ruleGroup.Name, &ruleGroup))
 		if ruleGroup.Name == newRuleGroup.Name {
+			for _, existingRule := range ruleGroup.Rules {
+				for j, newRule := range newRuleGroup.Rules {
+					if existingRule.Alert.Content[0].Value == newRule.Alert && existingRule.Expr.Content[0].Value == newRule.Expr {
+						// Update an old rule
+						existingRule.For = newRule.For
+						existingRule.KeepFiringFor = newRule.KeepFiringFor
+						existingRule.Labels = newRule.Labels
+						existingRule.Annotations = newRule.Annotations
+						newRuleGroup.Rules = slices.Delete(newRuleGroup.Rules, j, j+1)
+						break
+					}
+				}
+			}
 			for _, newRule := range newRuleGroup.Rules {
+				// Add a new rule
 				newNodeRule := RuleNode{
 					For:           newRule.For,
 					KeepFiringFor: newRule.KeepFiringFor,
@@ -139,7 +154,6 @@ func (manager *RulesManager) AddRules(newRuleGroup SimpleRuleGroup) error {
 				// ruleGroup.Rules = append(ruleGroup.Rules, newNodeRule)
 				manager.ruleGroups.Groups[i].Rules = append(manager.ruleGroups.Groups[i].Rules, newNodeRule)
 				fmt.Println(fmt.Sprintf("ruleGroup appended a newNodeRule: %+v\n", ruleGroup))
-				break
 			}
 		}
 	}

@@ -121,7 +121,7 @@ func (manager *RulesManager) AddRules(newRuleGroup SimpleRuleGroup) error {
 		if ruleGroup.Name == newRuleGroup.Name {
 			for _, existingRule := range ruleGroup.Rules {
 				for j, newRule := range newRuleGroup.Rules {
-					if existingRule.Alert.Content[0].Value == newRule.Alert && existingRule.Expr.Content[0].Value == newRule.Expr {
+					if existingRule.Alert.Value == newRule.Alert && existingRule.Expr.Value == newRule.Expr {
 						// Update an old rule
 						existingRule.For = newRule.For
 						existingRule.KeepFiringFor = newRule.KeepFiringFor
@@ -178,9 +178,41 @@ func (manager *RulesManager) AddRules(newRuleGroup SimpleRuleGroup) error {
 	return nil
 }
 
-func (manager *RulesManager) RemoveRule(group string, oldRule Rule) error {
-	fmt.Println(manager.ruleGroups)
-	fmt.Println(fmt.Sprintf("RemoveRule...%+v", oldRule))
+func (manager *RulesManager) RemoveRules(newRuleGroup SimpleRuleGroup) error {
+	fmt.Println(fmt.Sprintf("RemoveRules: %+v\n", newRuleGroup))
+
+	for i, ruleGroup := range manager.ruleGroups.Groups {
+		fmt.Println(fmt.Sprintf("In forrange, ruleGroup %s address: %p\n", ruleGroup.Name, &ruleGroup))
+		if ruleGroup.Name == newRuleGroup.Name {
+			for j, existingRule := range ruleGroup.Rules {
+				for _, newRule := range newRuleGroup.Rules {
+					if existingRule.Alert.Value == newRule.Alert && existingRule.Expr.Value == newRule.Expr {
+						// Delete an old rule
+						manager.ruleGroups.Groups[i].Rules = slices.Delete(manager.ruleGroups.Groups[i].Rules, j, j+1)
+						break
+					}
+				}
+			}
+		}
+	}
+
+	// Patch the ConfigMap
+	rulesData, err := yaml.Marshal(manager.ruleGroups)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(fmt.Sprintf("manager.ruleGroups: %+v", manager.ruleGroups))
+	dataValue := map[string]string{
+		rulefileName: string(rulesData),
+	}
+	err = manager.updateConfigMap(map[string]interface{}{"data": dataValue})
+	if err != nil {
+		fmt.Printf("Failed to patch ConfigMap: %v\n", err)
+		return err
+	}
+
+	fmt.Println("Custom rules configmap patched successfully.")
 	return nil
 }
 

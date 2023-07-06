@@ -97,6 +97,19 @@ func NewHandler(logger log.Logger) *Handler {
 	})
 	router.Post("/api/rules/delete", func(w http.ResponseWriter, r *http.Request) {
 		level.Info(h.logger).Log("msg", "Delete rules...")
+		decoder := json.NewDecoder(r.Body)
+		var ruleGroup SimpleRuleGroup
+		err := decoder.Decode(&ruleGroup)
+		if err != nil {
+			level.Error(h.logger).Log("msg", fmt.Sprintf("Error decoding request body: %s", err))
+			w.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(w, "Group rules cannot be decoded.\n")
+			return
+		}
+
+		rulesManager := NewRulesManager()
+		rulesManager.RemoveRules(ruleGroup)
+
 		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, "Rules are deleted successfully.\n")
 	})
